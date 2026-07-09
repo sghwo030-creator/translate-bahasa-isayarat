@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Penerjemah Bahasa Isyarat</title>
+
+    <!-- MediaPipe CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous">
+    </script>
+
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.10);
+            overflow: hidden;
+            padding: 24px 28px 32px;
+            transition: all 0.2s;
+        }
+
+        /* ── Header ── */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+            border-bottom: 2px solid #eef2f6;
+            padding-bottom: 18px;
+        }
+
+        .app-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(145deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-header h1 span {
+            font-size: 30px;
+            -webkit-text-fill-color: initial;
+        }
+
+        .header-badge {
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 6px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            transition: 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: rgba(37, 99, 235, 0.06);
+            color: #1e293b;
+        }
+
+        .tab-btn.active {
+            background: #ffffff;
+            color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        .tab-btn .icon {
+            font-size: 20px;
+        }
+
+        /* ── Tab Content ── */
+        .tab-content {
+            display: none;
+            animation: fadeUp 0.35s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Translate Tab ── */
+        .translate-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+
+        @media (max-width: 820px) {
+            .translate-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .app-container {
+                padding: 16px;
+            }
+            .app-header h1 {
+                font-size: 22px;
+            }
+        }
+
+        .input-section textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 18px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 17px;
+            font-family: inherit;
+            resize: vertical;
+            transition: 0.2s;
+            background: #fafcff;
+            color: #0f172a;
+            line-height: 1.6;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+        }
+
+        .input-section textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        .translate-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            justify-content: center;
+            min-width: 140px;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: scale(1.01);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #334155;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .output-section {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px 24px 24px;
+            border: 2px solid #eef2f6;
+            min-height: 220px;
+        }
+
+        .output-section .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sign-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            align-items: center;
+            min-height: 100px;
+        }
+
+        .sign-char {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: #ffffff;
+            padding: 10px 12px 8px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #eef2f6;
+            transition: 0.15s;
+        }
+
+        .sign-char:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .sign-char canvas {
+            width: 60px;
+            height: 60px;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .sign-char .char-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .sign-word {
+            background: #dbeafe;
+            padding: 12px 20px;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #bfdbfe;
+        }
+
+        .sign-word .emoji-big {
+            font-size: 32px;
+        }
+
+        .empty-output {
+            color: #94a3b8;
+            font-size: 16px;
+            padding: 24px 0;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* ── Dictionary Tab ── */
+        .dict-search {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .dict-search input {
+            flex: 1;
+            min-width: 200px;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 16px;
+            font-family: inherit;
+            background: #fafcff;
+            transition: 0.2s;
+        }
+
+        .dict-search input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+        }
+
+        .dict-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 16px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .dict-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .dict-grid::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .dict-item {
+            background: #f8fafc;
+            border: 1px solid #eef2f6;
+            border-radius: 16px;
+            padding: 16px 12px 14px;
+            text-align: center;
+            transition: 0.15s;
+            cursor: default;
+        }
+
+        .dict-item:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .dict-item canvas {
+            width: 70px;
+            height: 70px;
+            display: block;
+            margin: 0 auto 8px;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+
+        .dict-item .dict-word {
+            font-weight: 700;
+            font-size: 16px;
+            color: #0f172a;
+        }
+
+        .dict-item .dict-sign {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        /* ── Camera Tab ── */
+        .camera-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 820px) {
+            .camera-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-wrapper {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #0f172a;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .video-wrapper canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 14px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .camera-info {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .camera-info h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .camera-info p {
+            color: #475569;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .landmark-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 10px 16px;
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #94a3b8;
+            flex-shrink: 0;
+        }
+
+        .status-dot.active {
+            background: #22c55e;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
+        }
+
+        .status-text {
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        /* ── Footer ── */
+        .app-footer {
+            margin-top: 32px;
+            padding-top: 18px;
+            border-top: 2px solid #eef2f6;
+            text-align: center;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        /* ── Responsive tweaks ── */
+        @media (max-width: 480px) {
+            .tab-btn {
+                font-size: 13px;
+                padding: 10px 12px;
+                min-width: 70px;
+            }
+            .tab-btn .icon {
+                font-size: 16px;
+            }
+            .btn-primary {
+                padding: 12px 18px;
+                font-size: 14px;
+            }
+            .dict-grid {
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            }
+            .app-header h1 {
+                font-size: 20px;
+            }
+            .header-badge {
+                font-size: 12px;
+                padding: 4px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- ─── HEADER ─── -->
+        <header class="app-header">
+            <h1>
+                <span>🤟</span> Penerjemah Isyarat
+            </h1>
+            <div class="header-badge">SIBI · Indonesia</div>
+        </header>
+
+        <!-- ─── TABS ─── -->
+        <div class="tabs" role="tablist">
+            <button class="tab-btn active" data-tab="translate">
+                <span class="icon">✏️</span> Terjemahkan
+            </button>
+            <button class="tab-btn" data-tab="dictionary">
+                <span class="icon">📖</span> Kamus
+            </button>
+            <button class="tab-btn" data-tab="camera">
+                <span class="icon">📷</span> Kamera &amp; Lacak
+            </button>
+        </div>
+
+        <!-- ─── TAB: TRANSLATE ─── -->
+        <section class="tab-content active" id="tab-translate">
+            <div class="translate-grid">
+                <!-- Input -->
+                <div class="input-section">
+                    <label for="textInput" style="font-weight:600;font-size:15px;color:#334155;display:block;margin-bottom:8px;">
+                        Masukkan teks bahasa Indonesia
+                    </label>
+                    <textarea id="textInput" placeholder="Contoh: halo, selamat pagi, aku suka kamu ...">halo selamat pagi</textarea>
+                    <div class="translate-actions">
+                        <button class="btn-primary" id="translateBtn">
+                            <span>🔤</span> Terjemahkan
+                        </button>
+                        <button class="btn-secondary" id="clearBtn">
+                            <span>✕</span> Bersihkan
+                        </button>
+                    </div>
+                    <div style="margin-top:12px;font-size:14px;color:#64748b;">
+                        💡 Huruf akan diterjemahkan ke isyarat jari (fingerspelling).
+                    </div>
+                </div>
+
+                <!-- Output -->
+                <div class="output-section">
+                    <div class="label">
+                        <span>👆</span> Hasil Isyarat
+                    </div>
+                    <div class="sign-display" id="signDisplay">
+                        <div class="empty-output">Silakan ketik teks dan tekan Terjemahkan</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── TAB: DICTIONARY ─── -->
+        <section class="tab-content" id="tab-dictionary">
+            <div class="dict-search">
+                <input type="text" id="dictSearchInput" placeholder="Cari kata atau huruf…" />
+                <button class="btn-secondary" id="dictClearBtn" style="padding:14px 20px;">✕ Reset</button>
+            </div>
+            <div class="dict-grid" id="dictGrid">
+                <!-- diisi oleh JS -->
+            </div>
+        </section>
+
+        <!-- ─── TAB: CAMERA ─── -->
+        <section class="tab-content" id="tab-camera">
+            <div class="camera-container">
+                <div>
+                    <div class="video-wrapper">
+                        <video id="webcam" playsinline></video>
+                        <canvas id="handCanvas"></canvas>
+                    </div>
+                    <div class="camera-controls">
+                        <button class="btn-primary" id="camStartBtn">
+                            <span>▶️</span> Mulai Kamera
+                        </button>
+                        <button class="btn-secondary" id="camStopBtn">
+                            <span>⏹</span> Hentikan
+                        </button>
+                    </div>
+                </div>
+                <div class="camera-info">
+                    <h3>🧠 Lacak Tangan</h3>
+                    <p>
+                        Gunakan kamera untuk mendeteksi tangan Anda secara real-time.
+                        MediaPipe akan menggambar <strong>21 titik landmark</strong> pada telapak tangan.
+                    </p>
+                    <div class="landmark-status">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span class="status-text" id="statusText">Kamera belum aktif</span>
+                    </div>
+                    <p style="font-size:14px;color:#64748b;margin-top:4px;">
+                        ⚡ Pastikan izin kamera diberikan dan tangan terlihat jelas.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── FOOTER ─── -->
+        <footer class="app-footer">
+            Dibuat dengan ❤️ untuk mendukung komunikasi inklusif · SIBI (Sistem Isyarat Bahasa Indonesia)
+        </footer>
+
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        //  1.  DATA: ALPHABET + WORD DICTIONARY
+        // ═══════════════════════════════════════════════════════
+
+        // Huruf A–Z dengan deskripsi gestur (untuk dictionary)
+        const ALPHABET_DATA = [
+            { char: 'A', desc: 'Kepalan dengan ibu jari di samping' },
+            { char: 'B', desc: 'Telapak terbuka, jari rapat' },
+            { char: 'C', desc: 'Melengkung seperti huruf C' },
+            { char: 'D', desc: 'Telunjuk lurus, jari lain menekuk' },
+            { char: 'E', desc: 'Kelima jari menekuk rapat' },
+            { char: 'F', desc: 'Ibu jari & telunjuk membentuk lingkaran' },
+            { char: 'G', desc: 'Telunjuk lurus ke samping, ibu jari tegak' },
+            { char: 'H', desc: 'Telunjuk & jari tengah lurus ke samping' },
+            { char: 'I', desc: 'Kelingking lurus, jari lain menekuk' },
+            { char: 'J', desc: 'Kelingking lurus lalu melingkar' },
+            { char: 'K', desc: 'Telunjuk & jari tengah tegak, ibu jari menyilang' },
+            { char: 'L', desc: 'Ibu jari & telunjuk membentuk sudut siku' },
+            { char: 'M', desc: 'Ibu jari di bawah jari-jari yang menekuk' },
+            { char: 'N', desc: 'Ibu jari di bawah jari telunjuk & tengah' },
+            { char: 'O', desc: 'Jari membentuk lingkaran seperti huruf O' },
+            { char: 'P', desc: 'Telunjuk ke bawah, ibu jari menyamping' },
+            { char: 'Q', desc: 'Ibu jari & telunjuk menunjuk ke bawah' },
+            { char: 'R', desc: 'Telunjuk & jari tengah menyilang' },
+            { char: 'S', desc: 'Kepalan dengan ibu jari di depan' },
+            { char: 'T', desc: 'Ibu jari di antara telunjuk & jari tengah' },
+            { char: 'U', desc: 'Telunjuk & jari tengah tegak rapat' },
+            { char: 'V', desc: 'Telunjuk & jari tengah membentuk V' },
+            { char: 'W', desc: 'Telunjuk, tengah, & manis tegak' },
+            { char: 'X', desc: 'Telunjuk menekuk seperti kail' },
+            { char: 'Y', desc: 'Ibu jari & kelingking lurus, jari lain menekuk' },
+            { char: 'Z', desc: 'Telunjuk menulis huruf Z di udara' },
+        ];
+
+        // Kata-kata umum dengan emoji / representasi isyarat
+        const WORD_DICT = {
+            'halo': { emoji: '👋', label: 'Halo (lambaian)' },
+            'selamat': { emoji: '🙏', label: 'Selamat (salam)' },
+            'pagi': { emoji: '🌅', label: 'Pagi (tangan ke atas)' },
+            'siang': { emoji: '☀️', label: 'Siang (tangan di atas kepala)' },
+            'sore': { emoji: '🌇', label: 'Sore (tangan ke samping)' },
+            'malam': { emoji: '🌙', label: 'Malam (tangan di atas)' },
+            'terima kasih': { emoji: '🙏', label: 'Terima kasih (salam)' },
+            'maaf': { emoji: '🤲', label: 'Maaf (tangan di dada)' },
+            'tolong': { emoji: '🆘', label: 'Tolong (tangan ke depan)' },
+            'aku': { emoji: '👉', label: 'Aku (menunjuk diri)' },
+            'kamu': { emoji: '👉', label: 'Kamu (menunjuk lawan)' },
+            'suka': { emoji: '❤️', label: 'Suka (tangan di dada)' },
+            'cinta': { emoji: '❤️‍🔥', label: 'Cinta (tangan membentuk hati)' },
+            'ya': { emoji: '👍', label: 'Ya (acungan jempol)' },
+            'tidak': { emoji: '👎', label: 'Tidak (jempol ke bawah)' },
+            'bisa': { emoji: '💪', label: 'Bisa (tangan mengepal)' },
+            'mau': { emoji: '🤲', label: 'Mau (tangan terbuka)' },
+            'pergi': { emoji: '🚶', label: 'Pergi (tangan ke samping)' },
+            'datang': { emoji: '🚶', label: 'Datang (tangan ke dada)' },
+            'makan': { emoji: '🍽️', label: 'Makan (tangan ke mulut)' },
+            'minum': { emoji: '🥤', label: 'Minum (tangan ke bibir)' },
+            'tidur': { emoji: '😴', label: 'Tidur (tangan di pipi)' },
+            'senang': { emoji: '😊', label: 'Senang (tangan ke dada)' },
+            'sedih': { emoji: '😢', label: 'Sedih (tangan ke mata)' },
+            'marah': { emoji: '😠', label: 'Marah (tangan mengepal)' },
+            'baik': { emoji: '✅', label: 'Baik (acungan jempol)' },
+            'buruk': { emoji: '❌', label: 'Buruk (tangan silang)' },
+            'besar': { emoji: '📏', label: 'Besar (tangan melebar)' },
+            'kecil': { emoji: '📏', label: 'Kecil (tangan merapat)' },
+            'cepat': { emoji: '⚡', label: 'Cepat (tangan bergerak)' },
+            'lambat': { emoji: '🐢', label: 'Lambat (tangan pelan)' },
+        };
+
+        // ═══════════════════════════════════════════════════════
+        //  2.  HAND DRAWING (canvas) — untuk setiap huruf
+        // ═══════════════════════════════════════════════════════
+
+        function drawHandShape(canvas, letter) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width,
+                h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Background tipis
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, w, h);
+
+            // Warna kulit
+            const skin = '#e8b88a';
+            const outline = '#b5835a';
+            const dark = '#8d6b4f';
+
+            // Base telapak (oval)
+            ctx.beginPath();
+            ctx.ellipse(w / 2, h / 2 + 6, 22, 28, 0, 0, Math.PI * 2);
+            ctx.fillStyle = skin;
+            ctx.fill();
+            ctx.strokeStyle = outline;
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+
+            // Jari-jari berdasarkan huruf (sederhana)
+            const fingers = getFingerConfig(letter);
+            const baseX = w / 2;
+            const baseY = h / 2 + 2;
+
+            // Gambar jari
+            fingers.forEach((f, i) => {
+                const angle = f.angle || 0;
+                const len = f.len || 20;
+                const spread = f.spread || 0;
+                const x = baseX + spread;
+                const y = baseY - len;
+
+                ctx.beginPath();
+                if (f.thumb) {
+                    // Ibu jari: lebih pendek, miring
+                    ctx.ellipse(x + 6, y + 4, 8, 12, 0.4, 0, Math.PI * 2);
+                } else {
+                    ctx.ellipse(x, y, 7, 13, 0, 0, Math.PI * 2);
+                }
+                ctx.fillStyle = skin;
+                ctx.fill();
+                ctx.strokeStyle = outline;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                // Buku jari
+                if (!f.thumb) {
+                    ctx.beginPath();
+                    ctx.arc(x, y - 4, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = dark;
+                    ctx.fill();
+                }
+            });
+
+            // Tambahkan label huruf di bawah
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 18px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(letter, w / 2, h - 4);
+
+            // Garis telapak
+            ctx.beginPath();
+            ctx.moveTo(w / 2 - 10, h / 2 + 14);
+            ctx.lineTo(w / 2 + 10, h / 2 + 14);
+            ctx.strokeStyle = outline;
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+        }
+
+        function getFingerConfig(letter) {
+            // Konfigurasi jari untuk setiap huruf (sederhana)
+            const base = [
+                { spread: -14, len: 22 },
+                { spread: -6, len: 24 },
+                { spread: 2, len: 22 },
+                { spread: 10, len: 20 },
+                { spread: 18, len: 16, thumb: true },
+            ];
+
+            // Variasi berdasarkan huruf
+            const map = {
+                'A': [
+                    { spread: -12, len: 14 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 16, thumb: true },
+                ],
+                'B': [
+                    { spread: -16, len: 26 },
+                    { spread: -6, len: 28 },
+                    { spread: 4, len: 28 },
+                    { spread: 14, len: 26 },
+                    { spread: 22, len: 20, thumb: true },
+                ],
+                'C': [
+                    { spread: -14, len: 18 },
+                    { spread: -6, len: 20 },
+                    { spread: 2, len: 18 },
+                    { spread: 10, len: 16 },
+                    { spread: 18, len: 18, thumb: true },
+                ],
+                'D': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 28 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'E': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 10 },
+                    { spread: 4, len: 10 },
+                    { spread: 12, len: 10 },
+                    { spread: 18, len: 12, thumb: true },
+                ],
+                'F': [
+                    { spread: -14, len: 18 },
+                    { spread: -6, len: 18 },
+                    { spread: 2, len: 18 },
+                    { spread: 10, len: 18 },
+                    { spread: 18, len: 22, thumb: true },
+                ],
+                'G': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 20, thumb: true },
+                ],
+                'H': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'I': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 24, thumb: true },
+                ],
+                'J': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 26, thumb: true },
+                ],
+                'K': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 20, thumb: true },
+                ],
+                'L': [
+                    { spread: -12, len: 28 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 20, thumb: true },
+                ],
+                'M': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 16, thumb: true },
+                ],
+                'N': [
+                    { spread: -12, len: 14 },
+                    { spread: -4, len: 14 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 16, thumb: true },
+                ],
+                'O': [
+                    { spread: -12, len: 16 },
+                    { spread: -4, len: 16 },
+                    { spread: 4, len: 16 },
+                    { spread: 12, len: 16 },
+                    { spread: 18, len: 18, thumb: true },
+                ],
+                'P': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 20, thumb: true },
+                ],
+                'Q': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 20, thumb: true },
+                ],
+                'R': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'S': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 10 },
+                    { spread: 4, len: 10 },
+                    { spread: 12, len: 10 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'T': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 22, thumb: true },
+                ],
+                'U': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'V': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 26 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'W': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 26 },
+                    { spread: 4, len: 26 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'X': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 18 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+                'Y': [
+                    { spread: -12, len: 12 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 28, thumb: true },
+                ],
+                'Z': [
+                    { spread: -12, len: 26 },
+                    { spread: -4, len: 12 },
+                    { spread: 4, len: 12 },
+                    { spread: 12, len: 12 },
+                    { spread: 18, len: 14, thumb: true },
+                ],
+            };
+
+            return map[letter] || base;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  3.  RENDER FUNCTIONS
+        // ═══════════════════════════════════════════════════════
+
+        function renderSigns(text) {
+            const container = document.getElementById('signDisplay');
+            container.innerHTML = '';
+
+            if (!text || text.trim() === '') {
+                container.innerHTML = `<div class="empty-output">Silakan ketik teks dan tekan Terjemahkan</div>`;
+                return;
+            }
+
+            const words = text.trim().split(/\s+/);
+            let hasContent = false;
+
+            words.forEach((word, wi) => {
+                const clean = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (!clean) return;
+
+                // Coba kata utuh di dictionary
+                if (WORD_DICT[clean]) {
+                    hasContent = true;
+                    const entry = WORD_DICT[clean];
+                    const div = document.createElement('div');
+                    div.className = 'sign-word';
+                    div.innerHTML = `<span class="emoji-big">${entry.emoji}</span> ${entry.label}`;
+                    container.appendChild(div);
+                    return;
+                }
+
+                // Fingerspelling per huruf
+                const chars = clean.toUpperCase().split('');
+                chars.forEach(ch => {
+                    if (ch >= 'A' && ch <= 'Z') {
+                        hasContent = true;
+                        const div = document.createElement('div');
+                        div.className = 'sign-char';
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 80;
+                        canvas.height = 80;
+                        drawHandShape(canvas, ch);
+
+                        const label = document.createElement('span');
+                        label.className = 'char-label';
+                        label.textContent = ch;
+
+                        div.appendChild(canvas);
+                        div.appendChild(label);
+                        container.appendChild(div);
+                    }
+                });
+
+                // Spasi antar kata (visual)
+                if (wi < words.length - 1) {
+                    const spacer = document.createElement('span');
+                    spacer.style.cssText =
+                        'width:12px;height:2px;background:#cbd5e1;border-radius:4px;display:inline-block;margin:0 4px;';
+                    container.appendChild(spacer);
+                }
+            });
+
+            if (!hasContent) {
+                container.innerHTML = `<div class="empty-output">Tidak ada huruf atau kata yang dikenali.</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  4.  DICTIONARY RENDER
+        // ═══════════════════════════════════════════════════════
+
+        function renderDictionary(filter = '') {
+            const grid = document.getElementById('dictGrid');
+            grid.innerHTML = '';
+
+            const q = filter.toLowerCase().trim();
+
+            // Gabungkan alphabet + word dict
+            const items = [];
+
+            ALPHABET_DATA.forEach(a => {
+                items.push({ type: 'letter', key: a.char, label: a.char, desc: a.desc });
+            });
+
+            Object.keys(WORD_DICT).forEach(key => {
+                items.push({ type: 'word', key: key, label: key, desc: WORD_DICT[key].label, emoji: WORD_DICT[key]
+                        .emoji });
+            });
+
+            const filtered = items.filter(it =>
+                it.key.toLowerCase().includes(q) ||
+                it.desc.toLowerCase().includes(q) ||
+                it.label.toLowerCase().includes(q)
+            );
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#94a3b8;">Tidak ditemukan</div>`;
+                return;
+            }
+
+            filtered.forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'dict-item';
+
+                if (it.type === 'letter') {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 80;
+                    canvas.height = 80;
+                    drawHandShape(canvas, it.key);
+                    div.appendChild(canvas);
+
+                    const word = document.createElement('div');
+                    word.className = 'dict-word';
+                    word.textContent = it.key;
+                    div.appendChild(word);
+
+                    const desc = document.createElement('div');
+                    desc.className = 'dict-sign';
+                    desc.textContent = it.desc;
+                    div.appendChild(desc);
+                } else {
+                    const emoji = document.createElement('div');
+                    emoji.style.cssText = 'font-size:40px;line-height:1.2;';
+                    emoji.textContent = it.emoji || '🖐️';
+                    div.appendChild(emoji);
+
+                    const word = document.createElement('div');
+                    word.className = 'dict-word';
+                    word.textContent = it.key;
+                    div.appendChild(word);
+
+                    const desc = document.createElement('div');
+                    desc.className = 'dict-sign';
+                    desc.textContent = it.desc;
+                    div.appendChild(desc);
+                }
+
+                grid.appendChild(div);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  5.  MEDIAPIPE HAND TRACKING
+        // ═══════════════════════════════════════════════════════
+
+        let mpHands, hands, camera;
+        let cameraActive = false;
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('handCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function initMediaPipe() {
+            mpHands = window.Hands;
+            hands = new mpHands({
+                locateFile: (file) =>
+                    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.6,
+            });
+
+            hands.onResults(onHandResults);
+
+            camera = new window.Camera(video, {
+                onFrame: async () => {
+                    await hands.send({ image: video });
+                },
+                width: 640,
+                height: 480,
+            });
+        }
+
+        function onHandResults(results) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Sesuaikan ukuran canvas dengan video
+            if (video.videoWidth) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            } else {
+                canvas.width = 640;
+                canvas.height = 480;
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // Update status
+                document.getElementById('statusDot').className = 'status-dot active';
+                document.getElementById('statusText').textContent =
+                    `👋 ${results.multiHandLandmarks.length} tangan terdeteksi`;
+
+                // Gambar landmark
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(ctx, landmarks);
+                    drawLandmarks(ctx, landmarks);
+                }
+            } else {
+                document.getElementById('statusDot').className = 'status-dot';
+                document.getElementById('statusText').textContent = '🔍 Menunggu tangan...';
+            }
+        }
+
+        function drawConnectors(ctx, landmarks) {
+            const connections = [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 4],
+                [0, 5],
+                [5, 6],
+                [6, 7],
+                [7, 8],
+                [5, 9],
+                [9, 10],
+                [10, 11],
+                [11, 12],
+                [9, 13],
+                [13, 14],
+                [14, 15],
+                [15, 16],
+                [13, 17],
+                [17, 18],
+                [18, 19],
+                [19, 20],
+                [0, 17]
+            ];
+
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = 'rgba(34,197,94,0.3)';
+            ctx.shadowBlur = 6;
+
+            connections.forEach(([i, j]) => {
+                const p1 = landmarks[i];
+                const p2 = landmarks[j];
+                if (p1 && p2) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+                    ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+                    ctx.stroke();
+                }
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        function drawLandmarks(ctx, landmarks) {
+            landmarks.forEach((p, idx) => {
+                const x = p.x * canvas.width;
+                const y = p.y * canvas.height;
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fill();
+                ctx.strokeStyle = '#1e40af';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Nomor titik (kecil)
+                ctx.fillStyle = 'white';
+                ctx.font = '8px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(idx, x, y);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  6.  CAMERA CONTROLS
+        // ═══════════════════════════════════════════════════════
+
+        async function startCamera() {
+            if (cameraActive) return;
+            try {
+                await camera.start();
+                cameraActive = true;
+                document.getElementById('statusDot').className = 'status-dot active';
+                document.getElementById('statusText').textContent = '📷 Kamera aktif, mencari tangan...';
+                document.getElementById('camStartBtn').textContent = '🔄 Kamera Aktif';
+                document.getElementById('camStartBtn').style.opacity = '0.7';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('statusText').textContent = '❌ Gagal mengakses kamera: ' + err.message;
+            }
+        }
+
+        function stopCamera() {
+            if (camera && cameraActive) {
+                camera.stop();
+                cameraActive = false;
+                document.getElementById('statusDot').className = 'status-dot';
+                document.getElementById('statusText').textContent = '⏹ Kamera dihentikan';
+                document.getElementById('camStartBtn').textContent = '▶️ Mulai Kamera';
+                document.getElementById('camStartBtn').style.opacity = '1';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  7.  EVENT BINDING & INIT
+        // ═══════════════════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // ── Tab switching ──
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = {
+                translate: document.getElementById('tab-translate'),
+                dictionary: document.getElementById('tab-dictionary'),
+                camera: document.getElementById('tab-camera'),
+            };
+
+            tabs.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    tabs.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    const tab = this.dataset.tab;
+                    Object.keys(contents).forEach(key => {
+                        contents[key].classList.toggle('active', key === tab);
+                    });
+                    // Resize canvas jika ke tab camera
+                    if (tab === 'camera' && cameraActive) {
+                        setTimeout(() => {
+                            if (video.videoWidth) {
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                            }
+                        }, 100);
+                    }
+                });
+            });
+
+            // ── Translate ──
+            document.getElementById('translateBtn').addEventListener('click', function() {
+                const text = document.getElementById('textInput').value;
+                renderSigns(text);
+            });
+
+            document.getElementById('clearBtn').addEventListener('click', function() {
+                document.getElementById('textInput').value = '';
+                document.getElementById('signDisplay').innerHTML =
+                    `<div class="empty-output">Silakan ketik teks dan tekan Terjemahkan</div>`;
+            });
+
+            // Enter key di textarea
+            document.getElementById('textInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('translateBtn').click();
+                }
+            });
+
+            // ── Dictionary search ──
+            const searchInput = document.getElementById('dictSearchInput');
+            searchInput.addEventListener('input', function() {
+                renderDictionary(this.value);
+            });
+            document.getElementById('dictClearBtn').addEventListener('click', function() {
+                searchInput.value = '';
+                renderDictionary('');
+            });
+
+            // ── Camera ──
+            document.getElementById('camStartBtn').addEventListener('click', startCamera);
+            document.getElementById('camStopBtn').addEventListener('click', stopCamera);
+
+            // ── Init dictionary ──
+            renderDictionary('');
+
+            // ── Init MediaPipe ──
+            if (typeof window.Hands !== 'undefined' && typeof window.Camera !== 'undefined') {
+                initMediaPipe();
+            } else {
+                console.warn('MediaPipe tidak dimuat. Pastikan CDN tersedia.');
+                document.getElementById('statusText').textContent = '⚠️ MediaPipe gagal dimuat, periksa koneksi.';
+            }
+
+            // ── Render awal ──
+            const initialText = document.getElementById('textInput').value;
+            if (initialText.trim()) {
+                renderSigns(initialText);
+            }
+
+            // ── Resize canvas saat tab camera diaktifkan ──
+            const observer = new MutationObserver(() => {
+                if (document.getElementById('tab-camera').classList.contains('active') && cameraActive) {
+                    setTimeout(() => {
+                        if (video.videoWidth) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        }
+                    }, 150);
+                }
+            });
+            document.querySelectorAll('.tab-content').forEach(el => {
+                observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  clean up camera on page unload
+        // ═══════════════════════════════════════════════════════
+        window.addEventListener('beforeunload', function() {
+            if (camera && cameraActive) {
+                camera.stop();
+            }
+        });
+    </script>
+
+</body>
+</html>
